@@ -1,11 +1,33 @@
+extern crate serde;
+extern crate serde_json;
+
+use std::fmt::Display;
+
+#[derive(Debug, PartialEq)]
+pub enum ConVarError {
+    UnknownConVar,
+    ParseError(String),
+}
+
+impl Display for ConVarError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConVarError::UnknownConVar => write!(f, "unknown convar"),
+            ConVarError::ParseError(msg) => write!(f, "parse error: {}", msg),
+        }
+    }
+}
+
 pub trait ConVarType: Sized {
-    fn from_convar_str(value: &str) -> Result<Self, &'static str>;
+    fn from_convar_str(value: &str) -> Result<Self, ConVarError>;
     fn to_convar_str(&self) -> String;
 }
 
 impl ConVarType for i32 {
-    fn from_convar_str(value: &str) -> Result<Self, &'static str> {
-        value.parse::<i32>().map_err(|_| "failed to parse i32")
+    fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
+        value
+            .parse::<i32>()
+            .map_err(|e| ConVarError::ParseError(e.to_string()))
     }
 
     fn to_convar_str(&self) -> String {
@@ -14,8 +36,10 @@ impl ConVarType for i32 {
 }
 
 impl ConVarType for f32 {
-    fn from_convar_str(value: &str) -> Result<Self, &'static str> {
-        value.parse::<f32>().map_err(|_| "failed to parse f32")
+    fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
+        value
+            .parse::<f32>()
+            .map_err(|e| ConVarError::ParseError(e.to_string()))
     }
 
     fn to_convar_str(&self) -> String {
@@ -23,11 +47,24 @@ impl ConVarType for f32 {
     }
 }
 
+#[macro_export]
 macro_rules! convars {
     ($($name:ident: $type:ty = $value:expr),* $(,)? ) => {
-        #[derive(Debug, Clone, PartialEq)]
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
         pub struct ConVars {
             $(pub $name: $type,)*
+        }
+
+        impl ConVars {
+            pub fn to_json(&self) -> Result<String, serde_json::Error> {
+                serde_json::to_string(self)
+            }
+
+            pub fn from_json(json_str: &str) -> Result<Self, serde_json::Error> {
+                serde_json::from_str(json_str)
+            }
         }
 
         impl Default for ConVars {
@@ -39,24 +76,25 @@ macro_rules! convars {
         }
 
         impl ConVars {
-            pub fn set_str(&mut self, name: &str, value: &str) -> Result<(), &'static str> {
+            pub fn set_str(&mut self, name: &str, value: &str) -> Result<(), ConVarError> {
                 match name {
                     $(
                         stringify!($name) => {
-                            self.$name = <$type as ConVarType>::from_convar_str(value)?
+                            self.$name = <$type as ConVarType>::from_convar_str(value)
+                                .map_err(|e| ConVarError::ParseError(e.to_string()))?
                         }
                     )*
-                    _ => return Err("unknown convar"),
+                    _ => return Err(ConVarError::UnknownConVar),
                 }
                 Ok(())
             }
 
-            pub fn get_str(&self, name: &str) -> Result<String, &'static str> {
+            pub fn get_str(&self, name: &str) -> Result<String, ConVarError> {
                 match name {
                     $(
                         stringify!($name) => Ok(self.$name.to_convar_str()),
                     )*
-                    _ => return Err("unknown convar"),
+                    _ => return Err(ConVarError::UnknownConVar),
                 }
             }
         }
@@ -67,20 +105,26 @@ macro_rules! convars {
 mod tests {
     use super::*;
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     pub struct PlayerConfig {
         pub level: i32,
         pub damage: f32,
     }
 
     impl ConVarType for PlayerConfig {
-        fn from_convar_str(value: &str) -> Result<Self, &'static str> {
+        fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
             let parts: Vec<&str> = value.split(',').collect();
             if parts.len() != 2 {
-                return Err("invalid format for PlayerConfig");
+                return Err(ConVarError::ParseError(String::from(
+                    "invalid format for PlayerConfig",
+                )));
             }
-            let level = parts[0].parse::<i32>().map_err(|_| "failed to parse i32")?;
-            let damage = parts[1].parse::<f32>().map_err(|_| "failed to parse f32")?;
+            let level = parts[0]
+                .parse::<i32>()
+                .map_err(|_| ConVarError::ParseError("failed to parse i32".to_string()))?;
+            let damage = parts[1]
+                .parse::<f32>()
+                .map_err(|_| ConVarError::ParseError("failed to parse f32".to_string()))?;
             Ok(PlayerConfig { level, damage })
         }
 
@@ -113,9 +157,7 @@ mod tests {
         );
 
         // Set a new value for player_config
-        convars
-            .set_str("player_config", "10,60.0")
-            .unwrap();
+        convars.set_str("player_config", "10,60.0").unwrap();
         assert_eq!(
             convars.player_config,
             PlayerConfig {
@@ -132,9 +174,7 @@ mod tests {
         assert!(convars.set_str("nonexistent_convar", "123").is_err());
 
         // Test an invalid format for player_config
-        assert!(convars
-            .set_str("player_config", "invalid")
-            .is_err());
+        assert!(convars.set_str("player_config", "invalid").is_err());
     }
 
     #[test]
@@ -152,10 +192,7 @@ mod tests {
 
         // Get a new value for view_distance
         match convars.get_str("view_distance") {
-            Ok(value) => assert_eq!(
-                f32::from_convar_str(&value),
-                Ok(convars.view_distance)
-            ),
+            Ok(value) => assert_eq!(f32::from_convar_str(&value), Ok(convars.view_distance)),
             Err(_) => panic!("failed to get convar"),
         }
     }

@@ -25,7 +25,7 @@ impl ConVarType for f32 {
 
 macro_rules! convars {
     ($($name:ident: $type:ty = $value:expr),* $(,)? ) => {
-        #[derive(Debug)]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct ConVars {
             $(pub $name: $type,)*
         }
@@ -67,7 +67,7 @@ macro_rules! convars {
 mod tests {
     use super::*;
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct PlayerConfig {
         pub level: i32,
         pub damage: f32,
@@ -145,7 +145,16 @@ mod tests {
         match convars.get_str("player_config") {
             Ok(value) => assert_eq!(
                 PlayerConfig::from_convar_str(&value),
-                Ok(convars.player_config)
+                Ok(convars.player_config.clone())
+            ),
+            Err(_) => panic!("failed to get convar"),
+        }
+
+        // Get a new value for view_distance
+        match convars.get_str("view_distance") {
+            Ok(value) => assert_eq!(
+                f32::from_convar_str(&value),
+                Ok(convars.view_distance)
             ),
             Err(_) => panic!("failed to get convar"),
         }

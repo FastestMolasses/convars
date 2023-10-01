@@ -47,6 +47,23 @@ impl ConVarType for f32 {
     }
 }
 
+impl ConVarType for bool {
+    fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
+        match value.to_lowercase().as_str() {
+            "true" | "t" | "1" | "y" | "yes" | "on" => Ok(true),
+            "false" | "f" | "0" | "n" | "no" | "off" => Ok(false),
+            _ => Err(ConVarError::ParseError(format!(
+                "invalid boolean representation: {}",
+                value
+            ))),
+        }
+    }
+
+    fn to_convar_str(&self) -> String {
+        self.to_string()
+    }
+}
+
 #[macro_export]
 macro_rules! convars {
     ($($name:ident: $type:ty = $value:expr),* $(,)? ) => {
@@ -137,6 +154,7 @@ mod tests {
         player_config: PlayerConfig = PlayerConfig { level: 5, damage: 30.0 },
         max_enemies: i32 = 10,
         view_distance: f32 = 100.0,
+        debug_mode: bool = false,
     }
 
     #[test]
@@ -195,5 +213,42 @@ mod tests {
             Ok(value) => assert_eq!(f32::from_convar_str(&value), Ok(convars.view_distance)),
             Err(_) => panic!("failed to get convar"),
         }
+    }
+
+    #[test]
+    fn test_bool_convar() {
+        let mut convars = ConVars::default();
+
+        // Test setting and getting boolean convar
+        assert!(!convars.debug_mode);
+        convars.set_str("debug_mode", "true").unwrap();
+        assert!(convars.debug_mode);
+        assert_eq!(convars.get_str("debug_mode").unwrap(), "true");
+
+        // Test various representations of true and false
+        convars.set_str("debug_mode", "true").unwrap();
+        assert!(convars.debug_mode);
+        convars.set_str("debug_mode", "false").unwrap();
+        assert!(!convars.debug_mode);
+        convars.set_str("debug_mode", "t").unwrap();
+        assert!(convars.debug_mode);
+        convars.set_str("debug_mode", "f").unwrap();
+        assert!(!convars.debug_mode);
+        convars.set_str("debug_mode", "1").unwrap();
+        assert!(convars.debug_mode);
+        convars.set_str("debug_mode", "0").unwrap();
+        assert!(!convars.debug_mode);
+        convars.set_str("debug_mode", "y").unwrap();
+        assert!(convars.debug_mode);
+        convars.set_str("debug_mode", "n").unwrap();
+        assert!(!convars.debug_mode);
+        convars.set_str("debug_mode", "yes").unwrap();
+        assert!(convars.debug_mode);
+        convars.set_str("debug_mode", "no").unwrap();
+        assert!(!convars.debug_mode);
+        convars.set_str("debug_mode", "on").unwrap();
+        assert!(convars.debug_mode);
+        convars.set_str("debug_mode", "off").unwrap();
+        assert!(!convars.debug_mode);
     }
 }

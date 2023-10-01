@@ -5,6 +5,7 @@ ConVars is a Rust library to create console variables for games made. Designed w
 * Define configuration variables with default values
 * Update configuration variables at runtime
 * Structs supported
+* Serialize and deserialize configuration variables
 
 ## Usage
 Add this to your Cargo.toml:

@@ -1,76 +1,76 @@
 extern crate serde;
 extern crate serde_json;
 
-use std::fmt::Display;
-
 #[cfg(feature = "bevy_ui")]
 pub mod bevy_ui;
-
-#[derive(Debug, PartialEq)]
-pub enum ConVarError {
-    UnknownConVar,
-    ParseError(String),
-}
-
-impl Display for ConVarError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConVarError::UnknownConVar => write!(f, "unknown convar"),
-            ConVarError::ParseError(msg) => write!(f, "parse error: {}", msg),
-        }
-    }
-}
-
-pub trait ConVarType: Sized {
-    fn from_convar_str(value: &str) -> Result<Self, ConVarError>;
-    fn to_convar_str(&self) -> String;
-}
-
-impl ConVarType for i32 {
-    fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
-        value
-            .parse::<i32>()
-            .map_err(|e| ConVarError::ParseError(e.to_string()))
-    }
-
-    fn to_convar_str(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl ConVarType for f32 {
-    fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
-        value
-            .parse::<f32>()
-            .map_err(|e| ConVarError::ParseError(e.to_string()))
-    }
-
-    fn to_convar_str(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl ConVarType for bool {
-    fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
-        match value.to_lowercase().as_str() {
-            "true" | "t" | "1" | "y" | "yes" | "on" => Ok(true),
-            "false" | "f" | "0" | "n" | "no" | "off" => Ok(false),
-            _ => Err(ConVarError::ParseError(format!(
-                "invalid boolean representation: {}",
-                value
-            ))),
-        }
-    }
-
-    fn to_convar_str(&self) -> String {
-        self.to_string()
-    }
-}
 
 #[macro_export]
 macro_rules! convars {
     ($($name:ident: $type:ty = $value:expr),* $(,)? ) => {
+        use std::fmt::Display;
         use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, PartialEq)]
+        pub enum ConVarError {
+            UnknownConVar,
+            ParseError(String),
+        }
+
+        impl Display for ConVarError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    ConVarError::UnknownConVar => write!(f, "unknown convar"),
+                    ConVarError::ParseError(msg) => write!(f, "parse error: {}", msg),
+                }
+            }
+        }
+
+        pub trait ConVarType: Sized {
+            fn from_convar_str(value: &str) -> Result<Self, ConVarError>;
+            fn to_convar_str(&self) -> String;
+        }
+
+        impl ConVarType for i32 {
+            fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
+                value
+                    .parse::<i32>()
+                    .map_err(|e| ConVarError::ParseError(e.to_string()))
+            }
+
+            fn to_convar_str(&self) -> String {
+                self.to_string()
+            }
+        }
+
+        impl ConVarType for f32 {
+            fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
+                value
+                    .parse::<f32>()
+                    .map_err(|e| ConVarError::ParseError(e.to_string()))
+            }
+
+            fn to_convar_str(&self) -> String {
+                self.to_string()
+            }
+        }
+
+        impl ConVarType for bool {
+            fn from_convar_str(value: &str) -> Result<Self, ConVarError> {
+                match value.to_lowercase().as_str() {
+                    "true" | "t" | "1" | "y" | "yes" | "on" => Ok(true),
+                    "false" | "f" | "0" | "n" | "no" | "off" => Ok(false),
+                    _ => Err(ConVarError::ParseError(format!(
+                        "invalid boolean representation: {}",
+                        value
+                    ))),
+                }
+            }
+
+            fn to_convar_str(&self) -> String {
+                self.to_string()
+            }
+        }
+
 
         #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
         pub struct ConVars {

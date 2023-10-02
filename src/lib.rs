@@ -3,6 +3,9 @@ extern crate serde_json;
 
 use std::fmt::Display;
 
+#[cfg(feature = "bevy_ui")]
+pub mod bevy_ui;
+
 #[derive(Debug, PartialEq)]
 pub enum ConVarError {
     UnknownConVar,

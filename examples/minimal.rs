@@ -1,5 +1,10 @@
 use bevy::prelude::*;
-use convars::bevy_ui::{Console, ConsoleBevyPlugin};
+use convars::{convars, bevy_ui::{Console, ConsoleBevyPlugin}};
+
+convars! {
+    player_health: i32 = 100,
+    player_mana: f32 = 100.0,
+}
 
 fn main() {
     App::new()
@@ -11,6 +16,8 @@ fn main() {
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera3dBundle::default());
+
+    let convars = ConVars::default();
 }
 
 fn toggle_console(keyboard_input: Res<Input<KeyCode>>, mut console: ResMut<Console>) {
